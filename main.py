@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 from library import *
@@ -311,52 +312,62 @@ y = df.Survived
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
 
 # Random Search of model parameters
-param = 100
-models = 1000
+models = 100
+
 for model in tqdm(range(models)):
-    parameters = {'criterion':['gini','entropy'][np.random.randint(2)],
-                    'splitter':['best','random'][np.random.randint(2)],
-                    'max_depth':None,
-                    'min_samples_split':np.random.random(),
-                    'min_samples_leaf':1,
-                    'max_features':['auto', 'sqrt', 'log2'][np.random.randint(3)],
-                    'random_state':42,
-                    'max_leaf_nodes':None,
-                    'min_impurity_decrease':np.random.random(),
-                    'min_impurity_split':[2,3,4][np.random.randint(3)],
-                    'ccp_alpha':np.random.random()}
+    c = np.random.random()*np.random.randint(2)
+    parameters = {'C':c if c > 0 else 0.1,
+     'kernel':['linear', 'sigmoid', 'poly'][np.random.randint(3)],
+     'degree':np.random.randint(10),
+     'gamma':['scale', 'auto'][np.random.randint(2)],
+     'coef0':np.random.random()*np.random.randint(2),
+     'shrinking':np.random.randint(2),
+     'probability':np.random.randint(2),
+     'tol':np.random.random()/100,
+     'cache_size':200,
+     'class_weight':None,
+     'verbose':False,
+     'max_iter':-1,
+     'decision_function_shape':'ovr',
+     'break_ties':np.random.randint(2),
+     'random_state':42}
 
-    dtc = DecisionTreeClassifier(criterion=parameters['criterion'],
-            splitter=parameters['splitter'],
-            max_depth=parameters['max_depth'],
-            min_samples_split=parameters['min_samples_split'],
-            min_samples_leaf=parameters['min_samples_leaf'],
-            max_features=parameters['max_features'],
-            random_state=parameters['random_state'],
-            max_leaf_nodes=parameters['max_leaf_nodes'],
-            min_impurity_decrease=parameters['min_impurity_decrease'],
-            min_impurity_split=parameters['min_impurity_split'],
-            ccp_alpha=parameters['ccp_alpha'])
+    svc = SVC(C=parameters['C'],
+        kernel=parameters['kernel'],
+        degree=parameters['degree'],
+        gamma=parameters['gamma'],
+        coef0=parameters['coef0'],
+        shrinking=parameters['shrinking'],
+        probability=parameters['probability'],
+        tol=parameters['tol'],
+        cache_size=parameters['cache_size'],
+        class_weight=parameters['class_weight'],
+        verbose=parameters['verbose'],
+        max_iter=parameters['max_iter'],
+        decision_function_shape=parameters['decision_function_shape'],
+        break_ties=parameters['break_ties'],
+        random_state=parameters['random_state'])
 
-    dtc.fit(x_train, y_train)
-    y_pred = dtc.predict(x_test)
+    svc.fit(x_train, y_train)
+    y_pred = svc.predict(x_test)
 
     # __Model Performance__
     metrics = pd.DataFrame({'accuracy': [accuracy_score(y_test, y_pred)],
     'precision': [precision_score(y_test, y_pred)],
     'recall': [recall_score(y_test, y_pred)],
-    'f1': [f1_score(y_test, y_pred)],
-    'test':[sum(y_pred)]})
+    'f1': [f1_score(y_test, y_pred)]})
 
     for key, val in parameters.items():
         metrics[key] = val
 
-    print(metrics)
-    # db.write(metrics, 'dtc-metrics', if_exists='append')
+# Checks if the model predicted if anyone would survive.
+    if y_pred.sum() > 0:
+        db.write(metrics, 'svc-metrics', if_exists='append')
 
 
 # %% codecell
 db.query("""
-    SELECT DISTINCT accuracy, precision, recall, f1
-    FROM metrics;
-    """)
+    SELECT DISTINCT * FROM [svc-metrics]
+    WHERE precision > 0
+    ORDER BY accuracy DESC;
+    """).head(10)
