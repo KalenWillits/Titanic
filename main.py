@@ -312,12 +312,12 @@ y = df.Survived
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
 
 # Random Search of model parameters
-models = 100
+models = 1
 
 for model in tqdm(range(models)):
     c = np.random.random()*np.random.randint(2)
     parameters = {'C':c if c > 0 else 0.1,
-     'kernel':['linear', 'sigmoid', 'poly'][np.random.randint(3)],
+     'kernel':['poly'][np.random.randint(3)],
      'degree':np.random.randint(10),
      'gamma':['scale', 'auto'][np.random.randint(2)],
      'coef0':np.random.random()*np.random.randint(2),
