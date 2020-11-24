@@ -18,12 +18,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+import joblib
 from tqdm import tqdm
 from library import *
 
 cd_data = 'data/'
 cd_figures = 'figures/'
 cd_docs = 'docs/'
+cd_models = 'models/'
 
 db = DataBase(path=cd_data, file_name='titanic.sqlite')
 
@@ -317,7 +319,7 @@ models = 1
 for model in tqdm(range(models)):
     c = np.random.random()*np.random.randint(2)
     parameters = {'C':c if c > 0 else 0.1,
-     'kernel':['poly'][np.random.randint(3)],
+     'kernel':'poly',
      'degree':np.random.randint(10),
      'gamma':['scale', 'auto'][np.random.randint(2)],
      'coef0':np.random.random()*np.random.randint(2),
@@ -366,8 +368,48 @@ for model in tqdm(range(models)):
 
 
 # %% codecell
-db.query("""
+# Applying the best parameters to the model.
+
+best_parameters = db.query("""
     SELECT DISTINCT * FROM [svc-metrics]
     WHERE precision > 0
     ORDER BY accuracy DESC;
-    """).head(10)
+    """).head(1)
+
+with open(cd_docs+'model_metrics.md', 'w+') as file:
+    file.write(best_parameters.to_markdown(index=False))
+
+svc = SVC(C=best_parameters['C'].values[0],
+    kernel=best_parameters['kernel'].values[0],
+    degree=best_parameters['degree'].values[0],
+    gamma=best_parameters['gamma'].values[0],
+    coef0=best_parameters['coef0'].values[0],
+    shrinking=best_parameters['shrinking'].values[0],
+    probability=best_parameters['probability'].values[0],
+    tol=best_parameters['tol'].values[0],
+    cache_size=best_parameters['cache_size'].values[0],
+    class_weight=best_parameters['class_weight'].values[0],
+    verbose=best_parameters['verbose'].values[0],
+    max_iter=best_parameters['max_iter'].values[0],
+    decision_function_shape=best_parameters['decision_function_shape'].values[0],
+    break_ties=best_parameters['break_ties'].values[0],
+    random_state=best_parameters['random_state'].values[0])
+
+p_test = process_data(test)
+p_train = process_data(train)
+x = p_train.drop('Survived', axis=1)
+y = p_train.Survived
+svc.fit(x, y)
+joblib.dump(svc, cd_models+'svc.pkl')
+# There is a single null value in the test data/Fare column!!
+# - Replacing it with the median.
+p_test.isnull().sum()
+p_test.median()
+p_test.Fare.fillna(p_test.Fare.median(), inplace=True)
+y_pred = svc.predict(p_test)
+# Need to add the passengerID back in here.
+pred = pd.DataFrame({'PassengerId':p_test.PassengerId, 'Survived':y_pred})
+db.write(df_y_pred, 'prediction')
+pred.to_csv(cd_data+'titanic-prediction.csv', index=False)
+
+# Kaggle submission accuracy: 0.75119

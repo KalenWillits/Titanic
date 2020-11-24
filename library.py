@@ -52,16 +52,21 @@ def strip_to_first(data):
 def process_data(data):
     # Numeric values
     data.PassengerId = pd.to_numeric(data.PassengerId)
-    data.Survived = pd.to_numeric(data.Survived)
     data.Pclass = pd.to_numeric(data.Pclass)
     data.Age = pd.to_numeric(data.Age)
     data.SibSp = pd.to_numeric(data.SibSp)
     data.Parch = pd.to_numeric(data.Parch)
     data.Fare = pd.to_numeric(data.Fare)
 
-    # Filling null Values
+    # Test data does not have the Survived column. Making an exception.
+    try:
+        data.Survived = pd.to_numeric(data.Survived)
+    except AttributeError:
+        pass
 
+    # Filling null Values
     data.Age.fillna(data.Age.mean(), inplace=True)
+
     # One Hot Values
     oh_sex =  pd.get_dummies(data.Sex)
     data['IsMale'] = oh_sex['male']
