@@ -214,6 +214,8 @@ df_fareQ4_survived = db.query("""
 
 # %% codecell
 # __Calculations__
+ratio_survived = df_survived.shape[0] / df.shape[0]
+
 num_women = sum(df['IsFemale'])
 num_men = sum(df['IsMale'])
 num_total = df.shape[0]
@@ -273,6 +275,7 @@ plt.savefig(cd_figures+title.lower().replace(' ', '-'), transparent=True)
 
 # __Reporting__
 report = ('# __Titanic Exploratory Data Analysis__' +
+'\nRatio of survivors: {0}'.format(round(ratio_survived,2)) +
 '\nRatio of female passengers: {0}'.format(round(ratio_women,2)) +
 '\nRatio of female survivors: {0}'.format(round(ratio_women_survived, 2)) +
 '\nRatio of male passengers: {0}'.format(round(ratio_men, 2)) +
@@ -314,7 +317,7 @@ y = df.Survived
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33, random_state=42)
 
 # Random Search of model parameters
-models = 1
+models = 1 # Increase this parameter for more randomly generated models.
 
 for model in tqdm(range(models)):
     c = np.random.random()*np.random.randint(2)
@@ -379,6 +382,15 @@ best_parameters = db.query("""
 with open(cd_docs+'model_metrics.md', 'w+') as file:
     file.write(best_parameters.to_markdown(index=False))
 
+# %% markdown
+# |   accuracy |   precision |   recall |       f1 |        C | kernel   |   degree | gamma   |    coef0 |   shrinking |   probability |        tol |   cache_size | class_weight   |   verbose |   max_iter | decision_function_shape   |   break_ties |   random_state |
+# |-----------:|------------:|---------:|---------:|---------:|:---------|---------:|:--------|---------:|------------:|--------------:|-----------:|-------------:|:---------------|----------:|-----------:|:--------------------------|-------------:|---------------:|
+# |    0.80339 |    0.798077 | 0.691667 | 0.741071 | 0.154449 | poly     |        2 | auto    | 0.797978 |           0 |             1 | 0.00974807 |          200 |                |         0 |         -1 | ovr                       |            0 |             42 |
+# This has provided a good start to answering our problem. We know that if we continue our random search we are bound to get better results. However due to the computational limitaions we have opted to go with this model.
+# Perhaps we could attempt this notebook again using an Nvidia GPU with cuda cores.
+
+# %% codecell
+# __Model Production__
 svc = SVC(C=best_parameters['C'].values[0],
     kernel=best_parameters['kernel'].values[0],
     degree=best_parameters['degree'].values[0],
@@ -395,21 +407,37 @@ svc = SVC(C=best_parameters['C'].values[0],
     break_ties=best_parameters['break_ties'].values[0],
     random_state=best_parameters['random_state'].values[0])
 
+# %% codecell
+# Pulling train and test data again.
+train = db.query("""
+    SELECT *
+    FROM train;
+    """)
+
+test = db.query("""
+    SELECT *
+    FROM test;
+    """)
+
+# Preparing the data for prediction
 p_test = process_data(test)
 p_train = process_data(train)
 x = p_train.drop('Survived', axis=1)
 y = p_train.Survived
+
+# Traing and saving the model
 svc.fit(x, y)
 joblib.dump(svc, cd_models+'svc.pkl')
+
 # There is a single null value in the test data/Fare column!!
 # - Replacing it with the median.
-p_test.isnull().sum()
-p_test.median()
 p_test.Fare.fillna(p_test.Fare.median(), inplace=True)
 y_pred = svc.predict(p_test)
-# Need to add the passengerID back in here.
+# Need to add the passengerID back in as per the submission requirements.
 pred = pd.DataFrame({'PassengerId':p_test.PassengerId, 'Survived':y_pred})
-db.write(df_y_pred, 'prediction')
+db.write(pred, 'prediction')
 pred.to_csv(cd_data+'titanic-prediction.csv', index=False)
 
-# Kaggle submission accuracy: 0.75119
+# %% markdown
+# The production model on the test data produced a score on the [Kaggle Leaderboards](https://www.kaggle.com/c/titanic/leaderboard) of 0.75119.
+# The next step would be to allow a GPU to run 1000 or more iterations of this model to gain optimal parameters. 

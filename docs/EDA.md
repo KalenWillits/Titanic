@@ -1,4 +1,5 @@
 # __Titanic Exploratory Data Analysis__
+Ratio of survivors: 0.38
 Ratio of female passengers: 0.35
 Ratio of female survivors: 0.68
 Ratio of male passengers: 0.65
