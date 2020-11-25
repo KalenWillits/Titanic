@@ -3,6 +3,10 @@
 ## Table Of Contents:
 # - [Connecting To The Database](#Connecting-To-The-Database)
 # - [Exploratory Data Analysis](#Exploratory-Data-Analysis)
+# - [Observations](#Observations)
+# - [Model Performance](#Model-Performance)
+# - [Final Model](#Final-Model)
+# - [Model Observations](#Model-Observations)
 
 # %% markdown
 ## Connecting To The Database
@@ -303,6 +307,7 @@ with open(cd_docs+'EDA.md', 'w+') as doc:
     doc.write(report)
 
 # %% markdown
+# Observations
 #  There are some standout metrics from our report. Even though there were less
 # women on the Titanic, women still had a better chance of survival than men.
 # Ranking at only 35% of the population on board, 68% of women survived in our
@@ -383,11 +388,16 @@ with open(cd_docs+'model_metrics.md', 'w+') as file:
     file.write(best_parameters.to_markdown(index=False))
 
 # %% markdown
+# ## Model Performance
 # |   accuracy |   precision |   recall |       f1 |        C | kernel   |   degree | gamma   |    coef0 |   shrinking |   probability |        tol |   cache_size | class_weight   |   verbose |   max_iter | decision_function_shape   |   break_ties |   random_state |
 # |-----------:|------------:|---------:|---------:|---------:|:---------|---------:|:--------|---------:|------------:|--------------:|-----------:|-------------:|:---------------|----------:|-----------:|:--------------------------|-------------:|---------------:|
 # |    0.80339 |    0.798077 | 0.691667 | 0.741071 | 0.154449 | poly     |        2 | auto    | 0.797978 |           0 |             1 | 0.00974807 |          200 |                |         0 |         -1 | ovr                       |            0 |             42 |
 # This has provided a good start to answering our problem. We know that if we continue our random search we are bound to get better results. However due to the computational limitaions we have opted to go with this model.
 # Perhaps we could attempt this notebook again using an Nvidia GPU with cuda cores.
+
+# %% markdown
+# ## Final Model
+# Automated query to best parameters according to accuracy and applying them to the production model.
 
 # %% codecell
 # __Model Production__
@@ -438,6 +448,14 @@ pred = pd.DataFrame({'PassengerId':p_test.PassengerId, 'Survived':y_pred})
 db.write(pred, 'prediction')
 pred.to_csv(cd_data+'titanic-prediction.csv', index=False)
 
+
 # %% markdown
+# ## Model Observations.
 # The production model on the test data produced a score on the [Kaggle Leaderboards](https://www.kaggle.com/c/titanic/leaderboard) of 0.75119.
-# The next step would be to allow a GPU to run 1000 or more iterations of this model to gain optimal parameters. 
+# The next step would be to allow a GPU to run 1000 or more iterations of this model to gain optimal parameters.
+#
+# There is evidence that supports what type of passenger survived to the titanic with this data. The first stand out metric is sex. A female passenger has a ~68% chance of survival when compared to a male passenger at ~32%. Now the distribution of male vs female passengers is not equal at ~65% male vs ~35% female. This means a model that does nothing but assume all female passengers survive according to our training data will be correct ~68% of the time. We know from the example submission that this is not the case. The example submission achieves a score of ~77%. This means our model is over-fit to the training data and we should re-evaluate our testing and training set. So we can assume that 77% of the passengers left on Kaggle's testing data is female.
+#
+# According to [titanic facts](https://titanicfacts.net/titanic-lifeboats/) there were 20 lifeboats on board which could only carry 33% of total passengers to safety. According to this training data ~38% of the ship survived. That plus the fact that [the lifeboats were not used at full capacity](https://www.historyonthenet.com/the-titanic-lifeboats) means our training data distribution is skewed towards the optimistic side.
+#
+# This does not bode well for our over-fit SVC. Further parameter tuning and more model exploration is required.
