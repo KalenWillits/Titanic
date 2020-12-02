@@ -129,3 +129,56 @@ def process_data(data):
     data.rename(columns={'Cabin':'Deck'}, inplace=True)
 
     return data
+
+
+class RandomSearchLR:
+    def __init__(self):
+        """
+        """
+        self.penalty = ['l1', 'l2', 'elasticnet', 'none'][np.random.randint(4)]
+        self.dual = np.random.randint(1)
+        self.tol = np.random.random()*0.001
+
+        C = np.random.random()*np.random.randint(10)
+        if C > 0:
+            self.C = C
+        else:
+            self.C = 1
+
+        self.fit_intercept = np.random.randint(1)
+        self.intercept_scaling = (np.random.random()+0.001)*np.random.randint(10)
+        self.class_weight = None
+        self.random_state = 42
+
+        if self.penalty == 'l1':
+            self.solver = ['lbfgs', 'sag', 'saga'][np.random.randint(3)]
+        else:
+            self.solver = ['newton-cg', 'lbfgs', 'sag', 'saga'][np.random.randint(4)]
+
+        if (self.solver == 'lbfgs') or (self.solver == 'newton-cg') or (self.solver == 'sag'):
+            self.penalty = ['none', 'l2'][np.random.randint(1)]
+
+        self.max_iter = 100
+        self.multi_class = ['auto', 'ovr', 'multinomial'][np.random.randint(3)]
+        self.verbose = 0
+        self.warm_start = np.random.randint(1)
+        self.n_jobs = -1
+        self.l1_ratio = np.random.random()
+
+    def to_dict(self):
+        dictionary_out = {'penalty':self.penalty,
+            'dual':self.dual,
+            'tol':self.tol,
+            'C':self.C,
+            'fit_intercept':self.fit_intercept,
+            'intercept_scaling':self.intercept_scaling,
+            'class_weight':self.class_weight,
+            'random_state':self.random_state,
+            'solver':self.solver,
+            'max_iter':self.max_iter,
+            'multi_class':self.multi_class,
+            'verbose':self.verbose,
+            'warm_start':self.warm_start,
+            'n_jobs':self.n_jobs,
+            'l1_ratio':self.l1_ratio}
+        return dictionary_out
